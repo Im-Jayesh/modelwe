@@ -1,17 +1,30 @@
 @import "tailwindcss";
 
+/* =========================
+   CSS VARIABLES (source of truth)
+   ========================= */
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  --font-actor: "Actor", sans-serif;
+  --font-didot: "GFS Didot", serif;
 }
 
+/* =========================
+   Tailwind theme mapping
+   ========================= */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  --font-sans: var(--font-actor);
+  --font-didot: var(--font-didot);
 }
 
+/* =========================
+   Dark mode
+   ========================= */
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
@@ -19,8 +32,59 @@
   }
 }
 
+/* =========================
+   Base styles
+   ========================= */
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-actor); /* Actor is default */
+}
+
+/* =========================
+   Font utilities
+   ========================= */
+.font-actor {
+  font-family: var(--font-actor);
+}
+
+.font-didot {
+  font-family: var(--font-didot);
+}
+
+/* =========================
+   Vogue-style heading
+   ========================= */
+/* MOBILE FIRST (Fits the screen) */
+.vogue-heading {
+  font-family: "GFS Didot", serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 13vw; /* Huge on mobile, but scales with screen */
+  line-height: 1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.sub-headings {
+  font-family: "GFS Didot", serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 6vw;
+  line-height: 1.2;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* DESKTOP OVERRIDE (Your exact original spec) */
+@media (min-width: 1024px) {
+  .vogue-heading {
+    font-size: 180px;
+    line-height: 312px;
+    letter-spacing: 0.15em;
+  }
+  .sub-headings {
+    font-size: 58px;
+    line-height: 72px;
+  }
 }
