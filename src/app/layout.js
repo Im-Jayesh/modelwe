@@ -32,14 +32,36 @@ const didot = GFS_Didot({
 });
 
 export const metadata = {
-  title: "Model WE",
-  description: "A platform to showcase and discover modeling talent.",
+  title: "Model WE | Showcase & Discover Modeling Talent",
+  icons: {
+    icon: '/favicon-v2.jpeg', // Points to /public/new-favicon.png
+  },
+  description: "The premier digital portfolio platform for models and scouts.",
+  openGraph: {
+    title: "Model WE | Connect with the World's Best Models",
+    description: "Create your professional portfolio and get discovered by top agencies.",
+    url: "https://modelwe.vercel.app",
+    siteName: "ModelWE",
+    images: [
+      {
+        url: "https://modelwe.vercel.app/main-og-banner.png", // A high-res branded image
+        width: 1200,
+        height: 630,
+      },
+    ],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["https://modelwe.vercel.app/main-og-banner.png"],
+  },
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <head>
+        <link rel="icon" href="/favicon-v2.jpeg" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link

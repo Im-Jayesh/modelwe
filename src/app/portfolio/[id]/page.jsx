@@ -4,13 +4,11 @@ import dbConnect from "@/dbConfig/dbConnect";
 import Profile from "@/models/Profile";
 import PortfolioClientView from "@/components/PortfolioClientView";
 import { redis } from "@/lib/redis";
+import getOptimizedUrl from "@/lib/optimizeImage"
 
 // 1. DYNAMIC SEO & OPENGRAPH METADATA
 export async function generateMetadata({ params }) {
-  // NEXT.JS 15+ FIX: Await the params object first!
-  const resolvedParams = await params;
-  const { id } = resolvedParams;
-
+  const { id } = await params;
   await dbConnect();
   const profile = await Profile.findOne({ userId: id }).lean();
 
@@ -20,18 +18,22 @@ export async function generateMetadata({ params }) {
   const heroImage = profile.images?.find(img => img.cover)?.url || profile.images?.[0]?.url;
 
   return {
-    title: `${fullName} | ModelWE Portfolio`,
-    description: profile.bio || `View ${fullName}'s official modeling portfolio and comp card.`,
+    // 1. ADD THIS LINE (use your actual production domain)
+    metadataBase: new URL('https://modelwe.vercel.app'), 
+    
+    title: `${fullName} | ModelWE Profile`,
+    description: profile.bio || `View ${fullName}'s official modeling profile.`,
     openGraph: {
       title: `${fullName} | ModelWE`,
-      description: profile.bio || `View ${fullName}'s official modeling portfolio.`,
-      url: `https://yourdomain.com/portfolio/${id}`,
+      description: profile.bio || `View ${fullName}'s official modeling profile.`,
+      url: `/profile/${id}`, // Next.js will now prefix this with metadataBase
       siteName: 'ModelWE',
       images: [
         {
-          url: heroImage || 'https://yourdomain.com/default-og.jpg',
-          width: 800,
-          height: 1200,
+          url: getOptimizedUrl(heroImage, 900), // Cloudinary URL is fine here
+          width: 1200,    // Standard OG landscape width
+          height: 630,    // Standard OG landscape height
+          alt: `${fullName}'s Profile Photo`,
         },
       ],
       type: 'profile',
@@ -39,8 +41,8 @@ export async function generateMetadata({ params }) {
     twitter: {
       card: 'summary_large_image',
       title: `${fullName} | ModelWE`,
-      description: profile.bio || `View ${fullName}'s official modeling portfolio.`,
-      images: [heroImage || 'https://yourdomain.com/default-og.jpg'],
+      description: profile.bio || `View ${fullName}'s official modeling profile.`,
+      images: [heroImage], // Twitter is usually more forgiving with Cloudinary
     },
   };
 }
