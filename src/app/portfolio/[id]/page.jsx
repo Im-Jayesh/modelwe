@@ -4,7 +4,7 @@ import dbConnect from "@/dbConfig/dbConnect";
 import Profile from "@/models/Profile";
 import PortfolioClientView from "@/components/PortfolioClientView";
 import { redis } from "@/lib/redis";
-import getOptimizedUrl from "@/lib/optimizeImage"
+import {getOptimizedUrl} from "@/lib/optimizeImage"
 
 // 1. DYNAMIC SEO & OPENGRAPH METADATA
 export async function generateMetadata({ params }) {
