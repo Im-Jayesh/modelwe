@@ -30,7 +30,7 @@ export default function CompleteProfilePage() {
             ageRange: null
         },
         images: [
-            { url: "/demo/hero.png", order: 1, cover: true },
+            { url: "/demo/pencil_icon.png", order: 1, cover: true },
         ],
         instagram: "",
         openToWorkNow: true,
