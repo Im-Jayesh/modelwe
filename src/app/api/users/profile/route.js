@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/dbConfig/dbConnect";
 import Profile from "@/models/Profile";
 import User from "@/models/User";
+import Follow from "@/models/Follow"; // <-- ADDED: Import Follow model
 import jwt from "jsonwebtoken";
 import { redis } from "@/lib/redis";
 import { getOrSetCache } from "@/lib/cache";
@@ -52,12 +53,19 @@ export async function GET(request) {
             return NextResponse.json({ message: "Profile not found", profile: null }, { status: 200 });
         }
 
-        // 2. LIVE STATS: Always fetch views directly from Redis (Real-time)
-        const uniqueViews = await redis.pfcount(`portfolio:views:${userId}`);
+        // 2. LIVE STATS: Fetch views AND Follow counts in real-time
+        // We use Promise.all to run all three database/Redis queries at the exact same time for speed
+        const [uniqueViews, realFollowerCount, realFollowingCount] = await Promise.all([
+            redis.pfcount(`portfolio:views:${userId}`),
+            Follow.countDocuments({ followingId: profile.userId }),
+            Follow.countDocuments({ followerId: profile.userId })
+        ]);
 
-        // Merge live views into the cached profile object
+        // Merge live views and live follow counts into the cached profile object
         const profileWithStats = {
             ...profile,
+            followersCount: realFollowerCount,   // <-- ADDED: Injects live followers
+            followingCount: realFollowingCount,  // <-- ADDED: Injects live following
             stats: {
                 ...(profile.stats || {}),
                 views: uniqueViews || 0

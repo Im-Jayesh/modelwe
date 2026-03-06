@@ -52,6 +52,8 @@ const profileSchema = new mongoose.Schema({
         required: true,
         unique: true // A user can only have one profile
     },
+    followersCount: { type: Number, default: 0 },
+    followingCount: { type: Number, default: 0 }, // Denormalized following count for quick access
     // Add this inside your existing ProfileSchema definition
 username: {
     type: String,
@@ -72,14 +74,6 @@ isVerified: {
     type: Boolean,
     default: false,
 },
-followers: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-}],
-following: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-}],
 }, { timestamps: true });
 
 // 3. COMPOUND INDEX (The secret to handling millions of operations)

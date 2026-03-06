@@ -2,9 +2,10 @@ import { cookies, headers } from "next/headers";
 import jwt from "jsonwebtoken";
 import dbConnect from "@/dbConfig/dbConnect";
 import Profile from "@/models/Profile";
+import Follow from "@/models/Follow"; // 1. IMPORT FOLLOW MODEL
 import ProfilePage from "@/components/Profile";
 import { redis } from "@/lib/redis";
-import {getOptimizedUrl} from "@/lib/optimizeImage"
+import { getOptimizedUrl } from "@/lib/optimizeImage";
 
 // 1. DYNAMIC SEO & OPENGRAPH METADATA
 export async function generateMetadata({ params }) {
@@ -49,26 +50,39 @@ export async function generateMetadata({ params }) {
 
 // 2. THE MAIN SERVER COMPONENT
 export default async function PublicPortfolioPage({ params }) {
-  // NEXT.JS 15+ FIX: Await the params object first!
   const resolvedParams = await params;
-  const { id } = resolvedParams;
+  const { id } = resolvedParams; // This is the ID of the profile we are viewing
 
   let isOwner = false;
+  let isFollowingByMe = false; // 2. NEW VARIABLE
   
-  // NEXT.JS 15+ FIX: Await the cookies() function!
   const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;
 
+  let myUserId = null; // 3. NEW VARIABLE TO HOLD MY USER ID
   if (token) {
     try {
       const decoded = jwt.verify(token, process.env.SECRET);
-      if (decoded.userId === id) {
+       myUserId = decoded.userId;
+
+      if (myUserId === id) {
         isOwner = true;
+      } else {
+        // 3. IF NOT OWNER, CHECK IF WE ARE FOLLOWING THEM
+        await dbConnect();
+        const followDoc = await Follow.exists({ 
+            followerId: myUserId, 
+            followingId: id 
+        });
+        if (followDoc) {
+            isFollowingByMe = true;
+        }
       }
     } catch (error) {
-      // Invalid or expired token
+      // Invalid or expired token, safely ignore
     }
   }
-  // Pass the data down to the Client UI component!
-  return <ProfilePage id={id} isOwner={isOwner} />;
+
+  // 4. PASS THE NEW PROP TO THE CLIENT COMPONENT
+  return <ProfilePage id={id} isOwner={isOwner} initialIsFollowing={isFollowingByMe} myUserId={myUserId} />;
 }
