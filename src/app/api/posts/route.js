@@ -6,6 +6,7 @@ import PostLike from "@/models/PostLike"; // <-- 1. WE NEED THIS TO CHECK YOUR L
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { redis } from "@/lib/redis";
+import { v2 as cloudinary } from "cloudinary";
 
 const getUserId = async () => {
     const cookieStore = await cookies();
@@ -149,7 +150,7 @@ export async function PUT(request) {
 // ==========================================
 // DELETE: Remove a Post & Cleanup Data
 // ==========================================
-import { v2 as cloudinary } from "cloudinary";
+
 
 const extractCloudinaryPublicId = (url) => {
     try {
