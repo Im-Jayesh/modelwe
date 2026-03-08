@@ -3,6 +3,7 @@ import dbConnect from "@/dbConfig/dbConnect";
 import Comment from "@/models/Comment";
 import Post from "@/models/Post";
 import Profile from "@/models/Profile";
+import { updateUserAffinity } from "@/lib/affinityWorker";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +116,8 @@ export async function POST(request) {
       firstName: profile?.firstName || "Model",
       profilePic: profile?.profilePic || null
     });
+
+    updateUserAffinity(userId, postId, 3).catch(e => console.error(e));
 
     await Post.findByIdAndUpdate(postId, {
       $inc: { commentsCount: 1 }

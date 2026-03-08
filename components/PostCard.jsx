@@ -108,7 +108,7 @@ export default function PostCard({ post, currentUserId, author }) {
         <div className="flex items-center justify-between px-2">
            <Link href={`/profile/${postOwnerId}`} className="flex items-center gap-3 group">
                <div className="w-8 h-8 rounded-full overflow-hidden bg-neutral-200 relative">
-                  <Image src={getOptimizedUrl(postAuthor.profilePic) || "/default.png"} fill alt="avatar" className="object-cover group-hover:scale-105 transition-transform" />
+                  <Image src={getOptimizedUrl(postAuthor.profilePic) || "/default-avatar.webp"} fill alt="avatar" className="object-cover group-hover:scale-105 transition-transform" />
                </div>
                <span className="font-bold text-sm tracking-tight group-hover:text-black/70 transition-colors">
                  @{postAuthor.username || postAuthor.firstName || "model"}

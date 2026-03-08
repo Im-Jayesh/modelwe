@@ -74,6 +74,13 @@ isVerified: {
     type: Boolean,
     default: false,
 },
+interestTags: {
+    type: Map,
+    of: Number,
+    default: {}
+},
+interestTags: { type: Map, of: Number, default: {} },
+affinityUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
 }, { timestamps: true });
 
 // 3. COMPOUND INDEX (The secret to handling millions of operations)

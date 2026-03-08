@@ -1,31 +1,34 @@
 "use client";
 
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import PostCard from "./PostCard";
 
 export default function ExploreFeed({ currentUserId }) {
   const queryClient = useQueryClient();
   const observerRef = useRef(null);
+  const [seed] = useState(Math.random());
 
   // --- 1. THE INFINITE QUERY ENGINE ---
-  const {
-    data,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    isLoading,
-    isRefetching,
-    refetch
-  } = useInfiniteQuery({
-    queryKey: ["explorePosts"],
-    queryFn: async ({ pageParam = 1 }) => {
-      const res = await fetch(`/api/explore?page=${pageParam}`);
-      if (!res.ok) throw new Error("Failed to fetch explore feed");
-      return res.json(); 
-    },
-    getNextPageParam: (lastPage) => lastPage.nextPage ?? undefined,
-  });
+  // --- 1. THE INFINITE QUERY ENGINE ---
+const {
+  data,
+  fetchNextPage,
+  hasNextPage,
+  isFetchingNextPage,
+  isLoading,
+  isRefetching,
+  refetch
+} = useInfiniteQuery({
+  queryKey: ["explorePosts", seed], // Adding seed to the key ensures a fresh feed on refresh
+  queryFn: async ({ pageParam = 1 }) => {
+    // FIX: Changed 'page' to 'pageParam'
+    const res = await fetch(`/api/explore?page=${pageParam}&seed=${seed}`);
+    if (!res.ok) throw new Error("Failed to fetch explore feed");
+    return res.json(); 
+  },
+  getNextPageParam: (lastPage) => lastPage.nextPage ?? undefined,
+});
 
   // --- 2. THE DEDUPLICATION FILTER (Fixes Pagination Drift) ---
   const uniquePosts = useMemo(() => {

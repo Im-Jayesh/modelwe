@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/dbConfig/dbConnect";
 import Post from "@/models/Post";
-import Comment from "@/models/Comment";
 import PostLike from "@/models/PostLike"; // <-- 1. WE NEED THIS TO CHECK YOUR LIKES!
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { redis } from "@/lib/redis";
-import { v2 as cloudinary } from "cloudinary";
+import { enqueueJob } from "@/lib/queue";
+import { deletePostAndCleanup } from "@/lib/services/postService";
+import { extractRobustTags } from "@/lib/tagEngine";
 
 const getUserId = async () => {
     const cookieStore = await cookies();
@@ -95,7 +96,7 @@ export async function POST(request) {
 
         let extractedTags = [];
         if (caption) {
-            const matches = caption.match(/#[\w]+/g);
+            const matches = extractRobustTags(caption);
             if (matches) {
                 extractedTags = matches.map(tag => tag.replace('#', '').toLowerCase());
             }
@@ -107,6 +108,8 @@ export async function POST(request) {
             caption,
             tags: extractedTags
         });
+
+        await enqueueJob("MODERATE_POST", { postId: newPost._id.toString(), imageUrl, caption });
 
         return NextResponse.json({ message: "Post created", post: newPost }, { status: 201 });
     } catch (error) {
@@ -168,7 +171,6 @@ const extractCloudinaryPublicId = (url) => {
 export async function DELETE(request) {
     try {
         await dbConnect();
-        // Fallback to getUserId if you have it defined at the top of the file
         const cookieStore = await cookies();
         const token = cookieStore.get("token")?.value;
         if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -183,34 +185,14 @@ export async function DELETE(request) {
 
         const { searchParams } = new URL(request.url);
         const postId = searchParams.get("id");
-
         if (!postId) return NextResponse.json({ error: "Post ID is required" }, { status: 400 });
 
-        const deletedPost = await Post.findOneAndDelete({ _id: postId, userId: currentUserId });
-        if (!deletedPost) return NextResponse.json({ error: "Post not found or unauthorized" }, { status: 404 });
+        // Verify the post exists AND the user owns it
+        const postToDelete = await Post.findOne({ _id: postId, userId: currentUserId });
+        if (!postToDelete) return NextResponse.json({ error: "Post not found or unauthorized" }, { status: 404 });
 
-        // 🛡️ THE FIX: Mapping your exact environment variables!
-        if (deletedPost.imageUrl && process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
-            cloudinary.config({
-                cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-                api_key: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY, // <-- MATCHES YOUR .ENV
-                api_secret: process.env.CLOUDINARY_API_SECRET,       // <-- MATCHES YOUR .ENV
-            });
-
-            const publicId = extractCloudinaryPublicId(deletedPost.imageUrl);
-            if (publicId) {
-                await cloudinary.uploader.destroy(publicId).catch(err => console.error("Cloudinary deletion failed:", err));
-            }
-        } else if (deletedPost.imageUrl) {
-            console.warn("⚠️ Cloudinary keys missing from .env! Post deleted from DB, but image remains on Cloudinary.");
-        }
-
-        // Database Cleanup
-        await Promise.all([
-            Comment.deleteMany({ postId: postId }),
-            PostLike.deleteMany({ postId: postId }),
-            redis.hdel("post:likes:queue", postId) 
-        ]);
+        // Call the exact same service as the AI!
+        await deletePostAndCleanup(postToDelete);
 
         return NextResponse.json({ message: "Post and associated data deleted" }, { status: 200 });
     } catch (error) {
