@@ -4,7 +4,7 @@ import PostLike from "@/models/PostLike";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { redis } from "@/lib/redis";
-import { updateUserAffinity } from "@/lib/affinityWorker"; // <-- NEW IMPORT
+import { updateUserAffinity } from "@/lib/affinityWorker"; // The engine
 
 const getUserId = async () => {
     const cookieStore = await cookies();
@@ -37,57 +37,44 @@ export async function POST(request) {
         const { postId } = await request.json();
         if (!postId) return NextResponse.json({ error: "postId required" }, { status: 400 });
 
-        const existing = await PostLike.findOne({ postId, userId }).lean();
+        // Ensure userId is a string for the query to be safe
+        const userIdStr = userId.toString();
 
-        // --- UNLIKE PATH ---
+        const existing = await PostLike.findOne({ 
+            postId, 
+            userId: { $in: [userIdStr, new mongoose.Types.ObjectId(userIdStr)] } 
+        }).lean();
+
         if (existing) {
+            // UNLIKE path
             await PostLike.deleteOne({ _id: existing._id });
-
             try {
                 await redisIncrWithRetry("post:likes:queue", postId, -1);
-                
-                // BACKGROUND: Reduce affinity (optional: passing -1 or just let it stay)
-                // We trigger it without 'await' to keep the response fast
-                updateUserAffinity(userId, postId, -1).catch(e => console.error("Affinity Error:", e));
-                
-            } catch (redisErr) {
-                console.error("Redis decrement failed for unlike:", redisErr);
-            }
-
+                // Background Affinity: Decrement
+                updateUserAffinity(userIdStr, postId, -1).catch(e => console.error(e));
+            } catch (redisErr) { console.error(redisErr); }
             return NextResponse.json({ isLiked: false });
         }
 
-        // --- LIKE PATH ---
+        // LIKE path
         try {
-            await PostLike.create({ postId, userId });
-
+            await PostLike.create({ postId, userId: userIdStr });
             try {
                 await redisIncrWithRetry("post:likes:queue", postId, 1);
-                
-                // BACKGROUND: Boost affinity (Positive reinforcement)
-                updateUserAffinity(userId, postId, 1).catch(e => console.error("Affinity Error:", e));
-                
-            } catch (redisErr) {
-                console.error("Redis increment failed for like:", redisErr);
-            }
-
+                // Background Affinity: Increment
+                updateUserAffinity(userIdStr, postId, 1).catch(e => console.error(e));
+            } catch (redisErr) { console.error(redisErr); }
             return NextResponse.json({ isLiked: true });
-
         } catch (err) {
-            if (err && (err.code === 11000 || (err.message && err.message.includes("duplicate key")))) {
-                try {
-                    await redisIncrWithRetry("post:likes:queue", postId, 1);
-                    // Still trigger affinity even on duplicate race condition
-                    updateUserAffinity(userId, postId, 1).catch(e => console.error("Affinity Error:", e));
-                } catch (redisErr) {
-                    console.error("Redis increment failed after duplicate key:", redisErr);
-                }
+            // Duplicate key race condition
+            if (err && (err.code === 11000 || err.message?.includes("duplicate key"))) {
+                await redisIncrWithRetry("post:likes:queue", postId, 1).catch(() => {});
+                updateUserAffinity(userIdStr, postId, 1).catch(() => {});
                 return NextResponse.json({ isLiked: true });
             }
             throw err;
         }
     } catch (error) {
-        console.error("Like Toggle Error:", error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
