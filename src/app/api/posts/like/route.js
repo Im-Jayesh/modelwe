@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/dbConfig/dbConnect";
+import mongoose from "mongoose";
 import PostLike from "@/models/PostLike";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
