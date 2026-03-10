@@ -4,6 +4,7 @@ import Image from "next/image";
 import { getOptimizedUrl } from "@/lib/optimizeImage";
 import { useState, useRef, Fragment, useEffect } from "react";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { parseCaption } from "@/lib/parseCaption";
 
 export default function ViewPostModal({ post, onClose, currentUserId, author }) {
   const queryClient = useQueryClient();
@@ -16,6 +17,7 @@ export default function ViewPostModal({ post, onClose, currentUserId, author }) 
   const [commentText, setCommentText] = useState("");
   const [commentCount, setCommentCount] = useState(post.commentsCount || 0);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showFullCaption, setShowFullCaption] = useState(false);
 
   // --- THE FIX: KEEP STATE IN SYNC WITH BACKGROUND UPDATES ---
   // If TanStack Query fetches fresh data in the background, this makes sure the modal updates instantly
@@ -345,10 +347,25 @@ export default function ViewPostModal({ post, onClose, currentUserId, author }) 
               <div className="w-8 h-8 rounded-full overflow-hidden bg-neutral-200 relative flex-shrink-0">
                 <Image src={getOptimizedUrl(postAuthor.profilePic) || "/default-avatar.webp"} fill alt="avatar" className="object-cover" />
               </div>
-              <p className="text-sm leading-relaxed">
-                <span className="font-bold mr-2">@{postAuthor.username || postAuthor.firstName || "model"}</span>
-                {post.caption}
+              <p className="whitespace-pre-wrap break-words">
+                {showFullCaption
+                ? parseCaption(post.caption)
+                : parseCaption(
+                    `${post.caption?.slice(0, 120)}${
+                      post.caption?.length > 120 ? "..." : ""
+                    }`
+                  )}
+
+              {post.caption?.length > 120 && (
+                <button
+                  onClick={() => setShowFullCaption((v) => !v)}
+                  className="ml-2 text-black/50 font-semibold hover:text-black"
+                >
+                  {showFullCaption ? "less" : "more"}
+                </button>
+              )}
               </p>
+              
             </div>
 
             <hr className="border-black/5" />
@@ -437,7 +454,7 @@ export default function ViewPostModal({ post, onClose, currentUserId, author }) 
               >
                 {isLiked ? "❤️" : "🤍"}
               </button>
-              <button className="text-black transition-transform active:scale-90 text-2xl">💬</button>
+              <button className="text-black transition-transform active:scale-90 text-2xl">💬 <span className="font-bold text-sm mb-1">{commentCount}</span></button>
             </div>
 
             <p className="font-bold text-sm mb-1">{likesCount} likes</p>
@@ -469,17 +486,42 @@ export default function ViewPostModal({ post, onClose, currentUserId, author }) 
 
       {/* INSTAGRAM HEART CSS */}
       <style jsx>{`
-        .animate-insta-heart {
-          animation: instaHeart 1000ms cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-        }
-        @keyframes instaHeart {
-          0% { opacity: 0; transform: scale(0); }
-          15% { opacity: 0.9; transform: scale(1.2); }
-          30% { opacity: 1; transform: scale(1); }
-          70% { opacity: 1; transform: scale(1); }
-          100% { opacity: 0; transform: scale(1.1); }
-        }
-      `}</style>
+  .animate-insta-heart {
+    animation: instaHeartWave 1200ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    transform-origin: center;
+    will-change: transform, opacity;
+  }
+
+  @keyframes instaHeartWave {
+    0% {
+      opacity: 0;
+      transform: translateY(60px) scale(0.3) rotate(-8deg);
+    }
+
+    20% {
+      opacity: 1;
+      transform: translateY(30px) scale(1.15) rotate(6deg);
+    }
+
+    40% {
+      transform: translateY(15px) scale(0.95) rotate(-4deg);
+    }
+
+    60% {
+      transform: translateY(5px) scale(1.05) rotate(3deg);
+    }
+
+    80% {
+      transform: translateY(0px) scale(1) rotate(-1deg);
+      opacity: 1;
+    }
+
+    100% {
+      transform: translateY(-15px) scale(1.05);
+      opacity: 0;
+    }
+  }
+`}</style>
     </div>
   );
 }

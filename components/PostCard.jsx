@@ -104,7 +104,7 @@ export default function PostCard({ post, currentUserId, author }) {
 
   return (
     <>
-      <div className="flex flex-col gap-3 mb-10 bg-white border-b border-black/5 pb-8">
+      <div className="flex flex-col gap-3 mb-10 bg-white border-b border-black/5 pb-8" >
         <div className="flex items-center justify-between px-2">
            <Link href={`/profile/${postOwnerId}`} className="flex items-center gap-3 group">
                <div className="w-8 h-8 rounded-full overflow-hidden bg-neutral-200 relative">
@@ -129,8 +129,10 @@ export default function PostCard({ post, currentUserId, author }) {
            )}
         </div>
 
-        <div className="w-full aspect-square bg-neutral-100 relative cursor-pointer overflow-hidden" onDoubleClick={handleImageDoubleClick}>
-          <Image src={getOptimizedUrl(post.imageUrl, 800)} alt="Post" fill className="object-cover" unoptimized />
+        <div className="w-full aspect-square bg-neutral-100 relative cursor-pointer overflow-hidden" onDoubleClick={handleImageDoubleClick} >
+        
+            <Image src={getOptimizedUrl(post.imageUrl, 800)} alt="Post" fill className="object-cover" unoptimized  />
+
           {showHeartAnim && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
               <svg className="animate-insta-heart drop-shadow-2xl" color="white" fill="white" height="120" viewBox="0 0 48 48" width="120"><path d="M34.6 3.1c-4.5 0-7.9 1.8-10.6 5.6-2.7-3.7-6.1-5.5-10.6-5.5C6 3.1 0 9.6 0 17.6c0 7.3 5.4 12 10.6 16.5.6.5 1.3 1.1 1.9 1.7l2.3 2c4.4 3.9 6.6 5.9 7.6 6.5.5.3 1.1.5 1.6.5s1.1-.2 1.6-.5c1-.6 2.8-2.2 7.8-6.8l2-1.8c.7-.6 1.3-1.2 2-1.7C42.7 29.6 48 25 48 17.6c0-8-6-14.5-13.4-14.5z"></path></svg>
@@ -140,11 +142,11 @@ export default function PostCard({ post, currentUserId, author }) {
 
         <div className="flex items-center justify-between px-2 pt-1">
            <div className="flex items-center gap-4">
-             <button onClick={() => likeMutation.mutate()} className={`transition-transform active:scale-90 text-2xl ${isLiked ? "text-red-500" : "text-black"}`}>
-               {isLiked ? "❤️" : "🤍"}
+             <button onClick={() => likeMutation.mutate()} className={`flex items-center justify-center transition-transform active:scale-90 text-2xl ${isLiked ? "text-red-500" : "text-black"}`}>
+               {isLiked ? "❤️" : "🤍"} <span className="font-bold text-sm text-center">{post.likesCount}</span> 
              </button>
              {/* 💬 OPENS THE MODAL NOW! */}
-             <button onClick={() => setIsModalOpen(true)} className="text-black transition-transform active:scale-90 text-2xl">💬</button>
+             <button onClick={() => setIsModalOpen(true)} className="text-black transition-transform active:scale-90 text-2xl flex items-center justify-center">💬 <span className="font-bold text-sm">{post.commentsCount}</span></button>
              <button onClick={handleShare} className="text-black transition-transform active:scale-90 text-2xl mb-1">
                <svg fill="currentColor" height="24" viewBox="0 0 24 24" width="24"><line fill="none" stroke="currentColor" strokeLinejoin="round" strokeWidth="2" x1="22" x2="9.218" y1="3" y2="10.083"></line><polygon fill="none" points="11.698 20.334 22 3.001 2 3.001 9.218 10.084 11.698 20.334" stroke="currentColor" strokeLinejoin="round" strokeWidth="2"></polygon></svg>
              </button>

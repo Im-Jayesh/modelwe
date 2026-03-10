@@ -5,10 +5,14 @@ import { redis } from "@/lib/redis";
 
 export async function GET(request) {
     // SECURITY: Ensure only your Vercel Cron Job can trigger this!
-    const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        return new NextResponse('Unauthorized', { status: 401 });
+    const { searchParams } = new URL(request.url);
+    const secret = searchParams.get("secret");
+
+    if (secret !== process.env.CRON_SECRET) {
+        return new Response("Unauthorized", { status: 401 });
     }
+
+    console.log("CRON: sync-views triggered at", new Date().toISOString());
 
     try {
         await dbConnect();
@@ -29,7 +33,7 @@ export async function GET(request) {
             }
         }
 
-        console.log(`Successfully synced views for ${profiles.length} profiles.`);
+        console.log(`Successfully synced views for ${profiles.length} profiles at`, new Date().toISOString());
         return NextResponse.json({ success: true });
 
     } catch (error) {

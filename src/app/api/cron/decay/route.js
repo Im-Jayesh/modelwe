@@ -4,10 +4,14 @@ import { runInterestDecay } from "@/lib/cron/decayInterests";
 export async function GET(request) {
     // Basic Security: Check for a Cron Secret Header 
     // so random people can't trigger your decay logic
-    const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        return new Response('Unauthorized', { status: 401 });
+    const { searchParams } = new URL(request.url);
+    const secret = searchParams.get("secret");
+
+    if (secret !== process.env.CRON_SECRET) {
+        return new Response("Unauthorized", { status: 401 });
     }
+
+    console.log("CRON: decay triggered at", new Date().toISOString());
 
     try {
         await runInterestDecay();

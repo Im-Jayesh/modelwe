@@ -15,10 +15,14 @@ function chunkArray(arr, size) {
 
 export async function GET(request) {
   // basic protection
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const { searchParams } = new URL(request.url);
+  const secret = searchParams.get("secret");
+
+  if (secret !== process.env.CRON_SECRET) {
     return new Response("Unauthorized", { status: 401 });
   }
+
+  console.log("CRON sync-likes triggered at", new Date().toISOString());
 
   try {
     await dbConnect();
@@ -64,7 +68,7 @@ export async function GET(request) {
         // ensure we try to cast to ObjectId for filter (Mongoose will cast too, but be explicit)
         let oid;
         try {
-          oid = mongoose.Types.ObjectId(postId);
+          oid = new mongoose.Types.ObjectId(postId);
         } catch (e) {
           // invalid id, skip
           console.warn("Skipping invalid postId in likes queue:", postId);

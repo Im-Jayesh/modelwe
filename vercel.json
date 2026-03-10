@@ -1,15 +1,15 @@
 {
   "crons": [
     {
-      "path": "/api/cron/sync-views",
+      "path": "/api/cron/sync-views?secret=some_random_string_for_cron_job_security",
       "schedule": "0 0 * * *" 
     },
     {
-      "path": "/api/cron/sync-likes",
+      "path": "/api/cron/sync-likes?secret=some_random_string_for_cron_job_security",
       "schedule": "0 0 * * *" 
     },
     {
-      "path": "/api/cron/decay",
+      "path": "/api/cron/decay?secret=some_random_string_for_cron_job_security",
       "schedule": "0 0 * * *" 
     }
   ]

@@ -3,11 +3,15 @@ import ExploreFeed from "@/components/ExploreFeed"; // Make sure this path is co
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 
-export default async function ExplorePage() {
+export default async function ExplorePage({ searchParams }) {
   // 1. Securely fetch the current user's ID on the server
   const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;
   let currentUserId = null;
+
+  const params = await searchParams;
+  const initialTag = params?.tag || "";
+
 
   if (token) {
     try {
@@ -30,7 +34,7 @@ export default async function ExplorePage() {
         
         {/* Search System - Pinned near top */}
         <div className="w-full px-4 sm:px-0 mb-2">
-          <SearchSystem />
+          <SearchSystem initialTag={initialTag} />
         </div>
 
         {/* The Infinite Algorithm Feed */}
