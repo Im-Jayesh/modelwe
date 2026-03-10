@@ -5,6 +5,7 @@ import { getOptimizedUrl } from "@/lib/optimizeImage";
 import { useState, useRef, Fragment, useEffect } from "react";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { parseCaption } from "@/lib/parseCaption";
+import CaptionInput from "./CaptionInput";
 
 export default function ViewPostModal({ post, onClose, currentUserId, author }) {
   const queryClient = useQueryClient();
@@ -400,7 +401,7 @@ export default function ViewPostModal({ post, onClose, currentUserId, author }) 
                               <span className="font-bold mr-2">
                                 @{cUsername}
                               </span>
-                              {comment.text}
+                              {parseCaption(comment.text)}
                             </p>
                             <div className="flex items-center gap-4 mt-1 text-[10px] text-black/40 font-semibold">
                               <span>{new Date(comment.createdAt).toLocaleDateString()}</span>
@@ -464,19 +465,19 @@ export default function ViewPostModal({ post, onClose, currentUserId, author }) 
           </div>
 
           {/* Comment form */}
-          <form onSubmit={handlePostComment} className="border-t border-black/10 p-4 flex items-center gap-3 flex-shrink-0">
-            <input
-              type="text"
+          <form onSubmit={handlePostComment} className="border-t border-black/10 pt-2 pb-7 flex flex-row items-center justify-center gap-3 flex-shrink-0">
+            
+            <CaptionInput 
               value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
+              onChange={setCommentText}
               placeholder="Add a comment..."
-              className="flex-1 text-sm outline-none bg-transparent"
-              disabled={commentMutation.isPending}
+              minHeight="45px" // Sleek, single-line feel
             />
+
             <button
               type="submit"
               disabled={!commentText.trim() || commentMutation.isPending}
-              className="text-blue-500 font-semibold text-sm transition-opacity disabled:opacity-50"
+              className="text-blue-500 font-semibold text-sm transition-opacity disabled:opacity-50 "
             >
               {commentMutation.isPending ? "Posting..." : "Post"}
             </button>

@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation"; // <-- Imported for routing to login
 import { getOptimizedUrl } from "@/lib/optimizeImage";
 import ViewPostModal from "./ViewPostModal";
+import { parseCaption } from "@/lib/parseCaption";
 
 export default function PostCard({ post, currentUserId, author }) {
   const queryClient = useQueryClient();
@@ -185,7 +186,7 @@ export default function PostCard({ post, currentUserId, author }) {
           <p className="font-bold text-sm">{likesCount} likes</p>
           <p className="text-sm">
             <Link href={`/profile/${postOwnerId}`} className="font-bold mr-2 hover:opacity-70">@{postAuthor.username || postAuthor.firstName || "model"}</Link>
-            {post.caption}
+            {parseCaption(post.caption)}
           </p>
           {post.commentsCount > 0 && (
             <button onClick={handleCommentClick} className="text-black/50 text-sm font-semibold text-left mt-1 hover:text-black">

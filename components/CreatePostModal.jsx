@@ -3,10 +3,11 @@
 import { useState, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
+import CaptionInput from "./CaptionInput"; // <-- Import the new mention component
 
 export default function CreatePostModal({ isOpen, onClose, profileId }) {
-  const [imageUrl, setImageUrl] = useState(""); // Used for local preview
-  const [localFile, setLocalFile] = useState(null); // The actual file to upload
+  const [imageUrl, setImageUrl] = useState("");
+  const [localFile, setLocalFile] = useState(null);
   const [caption, setCaption] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   
@@ -25,7 +26,6 @@ export default function CreatePostModal({ isOpen, onClose, profileId }) {
       return res.json();
     },
     onSuccess: () => {
-      // Invalidate the posts array so the new post appears instantly
       queryClient.invalidateQueries(["userPosts", profileId]);
       queryClient.invalidateQueries(["socialProfile", profileId]);
       handleClose();
@@ -38,7 +38,7 @@ export default function CreatePostModal({ isOpen, onClose, profileId }) {
     if (!file) return;
 
     setLocalFile(file);
-    setImageUrl(URL.createObjectURL(file)); // Show instant local preview
+    setImageUrl(URL.createObjectURL(file));
   };
 
   // --- 3. SECURE UPLOAD & SUBMIT ---
@@ -49,17 +49,15 @@ export default function CreatePostModal({ isOpen, onClose, profileId }) {
     setIsUploading(true);
 
     try {
-      // Step A: Get the Cloudinary Permission Slip
       const sigRes = await fetch('/api/upload/sign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ folder: 'posts' }) // Saving in a 'posts' folder
+        body: JSON.stringify({ folder: 'posts' })
       });
       
       if (!sigRes.ok) throw new Error("Failed to get signature");
       const sigData = await sigRes.json();
 
-      // Step B: Upload securely to Cloudinary
       const formData = new FormData();
       formData.append('file', localFile);
       formData.append('api_key', sigData.apiKey);
@@ -75,7 +73,7 @@ export default function CreatePostModal({ isOpen, onClose, profileId }) {
       const uploadData = await uploadRes.json();
       if (!uploadData.secure_url) throw new Error("Cloudinary upload failed");
 
-      // Step C: Save the permanent URL and caption to MongoDB
+      // Save the permanent URL and caption to MongoDB
       createPostMutation.mutate({ imageUrl: uploadData.secure_url, caption });
 
     } catch (error) {
@@ -148,16 +146,16 @@ export default function CreatePostModal({ isOpen, onClose, profileId }) {
           </div>
 
           <form onSubmit={handleSubmit} className="flex-1 flex flex-col gap-6">
-            <textarea 
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              placeholder="Include #hashtags to help brands and agencies find your work."
-              className="w-full h-full min-h-[150px] bg-transparent resize-none focus:outline-none text-sm leading-relaxed placeholder:text-black/30"
-              maxLength={2200}
-              disabled={isUploading || createPostMutation.isPending}
-            />
+            
+            {/* --- NEW MENTION INPUT --- */}
+            <div className="flex-1">
+              <CaptionInput 
+                value={caption}
+                onChange={setCaption}
+              />
+            </div>
 
-            <div className="flex items-center justify-between pt-4 border-t border-black/5">
+            <div className="flex items-center justify-between pt-4 border-t border-black/5 mt-auto">
               <span className="text-[10px] text-black/40 font-mono">{caption.length} / 2200</span>
               <button 
                 type="submit" 

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
+import NotificationDropdown from "@/components/NotificationDropdown"; // <-- IMPORT ADDED HERE
 
 // --- FETCHER ---
 const fetchAuthStatus = async () => {
@@ -74,6 +75,9 @@ export default function Navbar() {
                             <Link href={`/portfolio/${profile.userId}`} className="hover:text-black transition-colors">Portfolio</Link>
                             <Link href="/portfolio/edit" className="hover:text-black transition-colors">Editor</Link>
                             
+                            {/* --- ADDED: DESKTOP NOTIFICATION DROPDOWN --- */}
+                            <NotificationDropdown />
+
                             {/* PROFILE DROPDOWN */}
                             <div className="relative" ref={dropdownRef}>
                                 <button 
@@ -133,24 +137,30 @@ export default function Navbar() {
                     )}
                 </div>
 
-                {/* --- MOBILE HAMBURGER BUTTON --- */}
-                <button 
-                    className="md:hidden z-50 p-2 -mr-2 text-black focus:outline-none"
-                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                >
-                    <div className="w-6 h-5 flex flex-col justify-between">
-                        <span className={`w-full h-0.5 bg-current transition-all ${isMobileMenuOpen ? "rotate-45 translate-y-2.5" : ""}`}></span>
-                        <span className={`w-full h-0.5 bg-current transition-all ${isMobileMenuOpen ? "opacity-0" : ""}`}></span>
-                        <span className={`w-full h-0.5 bg-current transition-all ${isMobileMenuOpen ? "-rotate-45 -translate-y-2" : ""}`}></span>
-                    </div>
-                </button>
+                {/* --- MOBILE ACTION ICONS (BELL + HAMBURGER) --- */}
+                <div className="md:hidden flex items-center gap-4 z-50">
+                    
+                    {/* --- ADDED: MOBILE NOTIFICATION DROPDOWN --- */}
+                    {profile && <NotificationDropdown />}
+
+                    {/* MOBILE HAMBURGER BUTTON */}
+                    <button 
+                        className="p-2 -mr-2 text-black focus:outline-none"
+                        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                    >
+                        <div className="w-6 h-5 flex flex-col justify-between">
+                            <span className={`w-full h-0.5 bg-current transition-all ${isMobileMenuOpen ? "rotate-45 translate-y-2.5" : ""}`}></span>
+                            <span className={`w-full h-0.5 bg-current transition-all ${isMobileMenuOpen ? "opacity-0" : ""}`}></span>
+                            <span className={`w-full h-0.5 bg-current transition-all ${isMobileMenuOpen ? "-rotate-45 -translate-y-2" : ""}`}></span>
+                        </div>
+                    </button>
+                </div>
 
             </div>
 
             {/* --- MOBILE MENU OVERLAY --- */}
             <div className={`md:hidden h-screen fixed inset-0 bg-white z-40 transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? "translate-x-0" : "translate-x-full"}`}>
                 
-                {/* FIX: Changed justify-center to justify-start, added pt-28 (padding top) and overflow-y-auto */}
                 <div className="flex flex-col bg-white items-center justify-start h-full pt-28 pb-12 overflow-y-auto gap-8 text-sm uppercase tracking-[0.2em] font-semibold text-neutral-800">
                     
                     {isLoading ? (

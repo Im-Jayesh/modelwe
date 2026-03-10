@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/dbConfig/dbConnect";
 import Post from "@/models/Post";
-import PostLike from "@/models/PostLike"; // <-- 1. WE NEED THIS TO CHECK YOUR LIKES!
+import PostLike from "@/models/PostLike";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { redis } from "@/lib/redis";
 import { enqueueJob } from "@/lib/queue";
 import { deletePostAndCleanup } from "@/lib/services/postService";
 import { extractRobustTags } from "@/lib/tagEngine";
+import { sendNotification } from "@/lib/notify"; // <-- NEW: Import your notification helper
 
 const getUserId = async () => {
     const cookieStore = await cookies();
@@ -38,9 +39,7 @@ export async function GET(request) {
             .populate("userId", "username profilePic") 
             .lean();
 
-        // 🔥 DETECTIVE MODE: What is Redis holding right now?
         const pendingLikes = await redis.hgetall("post:likes:queue") || {};
-        console.log("🗄️ REDIS PENDING LIKES QUEUE:", pendingLikes);
 
         let myLikedPostIds = new Set();
         if (currentUserId) {
@@ -54,15 +53,9 @@ export async function GET(request) {
 
         const postsWithRealTimeLikes = posts.map(post => {
             const stringId = post._id.toString();
-            // Ensure we safely parse the Redis value, falling back to 0
             const pending = parseInt(pendingLikes[stringId] || "0", 10);
             const finalCount = Math.max(0, (post.likesCount || 0) + pending);
 
-            // 🔥 LOG THE MATH FOR THE FIRST POST
-            if (posts.indexOf(post) === 0) {
-                console.log(`🧮 MATH FOR POST 1: DB(${post.likesCount || 0}) + Redis(${pending}) = ${finalCount}`);
-            }
-            
             return {
                 ...post,
                 likesCount: finalCount,
@@ -76,8 +69,6 @@ export async function GET(request) {
         return NextResponse.json({ error: "Failed to fetch posts" }, { status: 500 });
     }
 }
-
-// ... (KEEP YOUR POST, PUT, DELETE FUNCTIONS EXACTLY AS THEY ARE BELOW THIS!) ...
 
 // ==========================================
 // POST: Create a new Post
@@ -109,10 +100,35 @@ export async function POST(request) {
             tags: extractedTags
         });
 
+        // 🔥 NEW: EXTRACT MENTIONS AND SEND NOTIFICATIONS
+        if (caption) {
+            const mentionRegex = /@\[.*?\]\((.*?)\)/g;
+            let match;
+            const mentionedIds = new Set();
+
+            while ((match = mentionRegex.exec(caption)) !== null) {
+                mentionedIds.add(match[1]); // match[1] is the captured ID
+            }
+
+            if (mentionedIds.size > 0) {
+                const notifyPromises = Array.from(mentionedIds).map((recipientId) => 
+                    sendNotification({
+                        recipientId,
+                        senderId: userId,
+                        type: "MENTION",
+                        postId: newPost._id.toString()
+                    })
+                );
+                // Fire and forget: run them without blocking the frontend response
+                await Promise.allSettled(notifyPromises);
+            }
+        }
+
         await enqueueJob("MODERATE_POST", { postId: newPost._id.toString(), imageUrl, caption });
 
         return NextResponse.json({ message: "Post created", post: newPost }, { status: 201 });
     } catch (error) {
+        console.error("Post creation error:", error);
         return NextResponse.json({ error: "Failed to create post" }, { status: 500 });
     }
 }
@@ -130,7 +146,7 @@ export async function PUT(request) {
 
         let extractedTags = [];
         if (caption) {
-            const matches = caption.match(/#[\w]+/g);
+            const matches = extractRobustTags(caption); // Swapped to use your new tagEngine
             if (matches) {
                 extractedTags = matches.map(tag => tag.replace('#', '').toLowerCase());
             }
@@ -144,6 +160,9 @@ export async function PUT(request) {
 
         if (!updatedPost) return NextResponse.json({ error: "Post not found or unauthorized" }, { status: 404 });
 
+        // Note: If you want notifications to trigger when someone edits a post and tags someone new, 
+        // you would add the mention extraction logic here too. For now, it just triggers on creation.
+
         return NextResponse.json({ message: "Post updated", post: updatedPost }, { status: 200 });
     } catch (error) {
         return NextResponse.json({ error: "Failed to update post" }, { status: 500 });
@@ -153,8 +172,6 @@ export async function PUT(request) {
 // ==========================================
 // DELETE: Remove a Post & Cleanup Data
 // ==========================================
-
-
 const extractCloudinaryPublicId = (url) => {
     try {
         const uploadIndex = url.indexOf('/upload/');
@@ -171,27 +188,16 @@ const extractCloudinaryPublicId = (url) => {
 export async function DELETE(request) {
     try {
         await dbConnect();
-        const cookieStore = await cookies();
-        const token = cookieStore.get("token")?.value;
-        if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        
-        let currentUserId = null;
-        try {
-            const decoded = jwt.verify(token, process.env.SECRET);
-            currentUserId = decoded.userId || decoded.id || decoded._id;
-        } catch {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        const currentUserId = await getUserId();
+        if (!currentUserId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         const { searchParams } = new URL(request.url);
         const postId = searchParams.get("id");
         if (!postId) return NextResponse.json({ error: "Post ID is required" }, { status: 400 });
 
-        // Verify the post exists AND the user owns it
         const postToDelete = await Post.findOne({ _id: postId, userId: currentUserId });
         if (!postToDelete) return NextResponse.json({ error: "Post not found or unauthorized" }, { status: 404 });
 
-        // Call the exact same service as the AI!
         await deletePostAndCleanup(postToDelete);
 
         return NextResponse.json({ message: "Post and associated data deleted" }, { status: 200 });
