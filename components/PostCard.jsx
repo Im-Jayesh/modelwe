@@ -4,16 +4,15 @@ import { useState, useRef, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation"; // <-- Imported for routing to login
 import { getOptimizedUrl } from "@/lib/optimizeImage";
-import ViewPostModal from "./ViewPostModal"; // <-- IMPORT YOUR MODAL!
+import ViewPostModal from "./ViewPostModal";
 
 export default function PostCard({ post, currentUserId, author }) {
   const queryClient = useQueryClient();
+  const router = useRouter(); 
   
-  // Smart Author Resolution
   const postAuthor = author || post.userDetails || post.userId || {};
-  
-  // THE FIX: Always grab the Auth User ID, never the Profile Document ID!
   const postOwnerId = post.userId?._id || post.userId || postAuthor?.userId;
   const isOwner = String(currentUserId) === String(postOwnerId);
 
@@ -21,7 +20,11 @@ export default function PostCard({ post, currentUserId, author }) {
   const [likesCount, setLikesCount] = useState(post.likesCount || 0);
   
   const [showMenu, setShowMenu] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false); // <-- TRACK MODAL STATE
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // --- NEW: Custom Auth Modal State ---
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMessage, setAuthMessage] = useState("");
   
   const menuRef = useRef(null);
   const heartTimeoutRef = useRef(null);
@@ -64,16 +67,9 @@ export default function PostCard({ post, currentUserId, author }) {
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries(["explorePosts"]); // <-- Refresh Explore feed
+      queryClient.invalidateQueries(["explorePosts"]);
     }
   });
-
-  const handleImageDoubleClick = () => {
-    if (!isLiked) likeMutation.mutate();
-    if (heartTimeoutRef.current) clearTimeout(heartTimeoutRef.current);
-    setShowHeartAnim(true);
-    heartTimeoutRef.current = setTimeout(() => setShowHeartAnim(false), 1000);
-  };
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
@@ -98,13 +94,45 @@ export default function PostCard({ post, currentUserId, author }) {
       catch (err) {}
     } else {
       navigator.clipboard.writeText(postUrl);
+      // You could also replace this alert with a custom toast later!
       alert("Link copied to clipboard!");
     }
   };
 
+  // --- UPDATED: Interceptors triggering the custom modal ---
+  const handleLikeClick = () => {
+    if (!currentUserId) {
+      setAuthMessage("Log in to like posts and curate your feed.");
+      setShowAuthModal(true);
+      return;
+    }
+    likeMutation.mutate();
+  };
+
+  const handleCommentClick = () => {
+    if (!currentUserId) {
+      setAuthMessage("Log in to join the conversation.");
+      setShowAuthModal(true);
+      return;
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleImageDoubleClick = () => {
+    if (!currentUserId) {
+      setAuthMessage("Log in to like posts and curate your feed.");
+      setShowAuthModal(true);
+      return;
+    }
+    if (!isLiked) likeMutation.mutate();
+    if (heartTimeoutRef.current) clearTimeout(heartTimeoutRef.current);
+    setShowHeartAnim(true);
+    heartTimeoutRef.current = setTimeout(() => setShowHeartAnim(false), 1000);
+  };
+
   return (
     <>
-      <div className="flex flex-col gap-3 mb-10 bg-white border-b border-black/5 pb-8" >
+      <div className="flex flex-col gap-3 mb-10 bg-white border-b border-black/5 pb-8">
         <div className="flex items-center justify-between px-2">
            <Link href={`/profile/${postOwnerId}`} className="flex items-center gap-3 group">
                <div className="w-8 h-8 rounded-full overflow-hidden bg-neutral-200 relative">
@@ -129,8 +157,7 @@ export default function PostCard({ post, currentUserId, author }) {
            )}
         </div>
 
-        <div className="w-full aspect-square bg-neutral-100 relative cursor-pointer overflow-hidden" onDoubleClick={handleImageDoubleClick} >
-        
+        <div className="w-full aspect-square bg-neutral-100 relative cursor-pointer overflow-hidden" onDoubleClick={handleImageDoubleClick}>
             <Image src={getOptimizedUrl(post.imageUrl, 800)} alt="Post" fill className="object-cover" unoptimized  />
 
           {showHeartAnim && (
@@ -142,11 +169,12 @@ export default function PostCard({ post, currentUserId, author }) {
 
         <div className="flex items-center justify-between px-2 pt-1">
            <div className="flex items-center gap-4">
-             <button onClick={() => likeMutation.mutate()} className={`flex items-center justify-center transition-transform active:scale-90 text-2xl ${isLiked ? "text-red-500" : "text-black"}`}>
-               {isLiked ? "❤️" : "🤍"} <span className="font-bold text-sm text-center">{post.likesCount}</span> 
+             <button onClick={handleLikeClick} className={`flex items-center justify-center transition-transform active:scale-90 text-2xl ${isLiked ? "text-red-500" : "text-black"}`}>
+               {isLiked ? "❤️" : "🤍"} <span className="font-bold text-sm text-center ml-1">{post.likesCount}</span> 
              </button>
-             {/* 💬 OPENS THE MODAL NOW! */}
-             <button onClick={() => setIsModalOpen(true)} className="text-black transition-transform active:scale-90 text-2xl flex items-center justify-center">💬 <span className="font-bold text-sm">{post.commentsCount}</span></button>
+             <button onClick={handleCommentClick} className="text-black transition-transform active:scale-90 text-2xl flex items-center justify-center">
+               💬 <span className="font-bold text-sm ml-1">{post.commentsCount}</span>
+             </button>
              <button onClick={handleShare} className="text-black transition-transform active:scale-90 text-2xl mb-1">
                <svg fill="currentColor" height="24" viewBox="0 0 24 24" width="24"><line fill="none" stroke="currentColor" strokeLinejoin="round" strokeWidth="2" x1="22" x2="9.218" y1="3" y2="10.083"></line><polygon fill="none" points="11.698 20.334 22 3.001 2 3.001 9.218 10.084 11.698 20.334" stroke="currentColor" strokeLinejoin="round" strokeWidth="2"></polygon></svg>
              </button>
@@ -159,9 +187,8 @@ export default function PostCard({ post, currentUserId, author }) {
             <Link href={`/profile/${postOwnerId}`} className="font-bold mr-2 hover:opacity-70">@{postAuthor.username || postAuthor.firstName || "model"}</Link>
             {post.caption}
           </p>
-          {/* View comments text link */}
           {post.commentsCount > 0 && (
-            <button onClick={() => setIsModalOpen(true)} className="text-black/50 text-sm font-semibold text-left mt-1 hover:text-black">
+            <button onClick={handleCommentClick} className="text-black/50 text-sm font-semibold text-left mt-1 hover:text-black">
               View all {post.commentsCount} comments
             </button>
           )}
@@ -173,7 +200,7 @@ export default function PostCard({ post, currentUserId, author }) {
         `}</style>
       </div>
 
-      {/* RENDER MODAL OUTSIDE THE CARD LAYOUT */}
+      {/* NORMAL COMMENT MODAL */}
       {isModalOpen && (
         <ViewPostModal 
           post={post} 
@@ -181,6 +208,40 @@ export default function PostCard({ post, currentUserId, author }) {
           author={postAuthor} 
           onClose={() => setIsModalOpen(false)} 
         />
+      )}
+
+      {/* --- NEW: CUSTOM AUTH OVERLAY MODAL --- */}
+      {showAuthModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white max-w-[500px] rounded-3xl p-8 max-w-sm w-full shadow-2xl flex flex-col items-center text-center transform scale-in-center">
+            
+            {/* Lock Icon */}
+            <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mb-4 text-2xl">
+              🔒
+            </div>
+            
+            <h3 className="text-xl font-serif font-bold mb-2 text-black">Login Required</h3>
+            <p className="text-sm text-neutral-500 mb-8 px-2">
+              {authMessage}
+            </p>
+            
+            <div className="w-full flex flex-col gap-3 min-[300px]">
+              <button 
+                onClick={() => router.push("/login")} // <-- Make sure this matches your login route!
+                className="w-full bg-black p-2 text-white font-bold py-3.5 rounded-full hover:bg-black/80 transition-colors"
+              >
+                Log In
+              </button>
+              <button 
+                onClick={() => setShowAuthModal(false)}
+                className="w-full bg-transparent text-black font-bold py-3.5 rounded-full hover:bg-neutral-100 transition-colors"
+              >
+                Not Now
+              </button>
+            </div>
+
+          </div>
+        </div>
       )}
     </>
   );

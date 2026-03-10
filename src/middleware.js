@@ -38,6 +38,9 @@ export const config = {
         '/signup',
         '/complete-profile',
         '/portfolio/edit',
+        '/explore',
+        '/search',
+        '/settings',
         // Add any other protected routes here
     ]
 }
